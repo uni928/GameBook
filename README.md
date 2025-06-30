@@ -1,5 +1,6 @@
 [# Gemini 版ゲームブック体験サイト](https://uni928.github.io/GameBook/index3.html)
-[# Open AI 版ゲームブック体験サイト](https://uni928.github.io/GameBook/index3.html)
+
+[# Open AI 版ゲームブック体験サイト](https://uni928.github.io/GameBook/index2.html)
 
 プレイには API キーが必要です。
 
