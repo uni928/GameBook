@@ -40,7 +40,7 @@
     let pageCount = 0;
     const maxPages = 20;
     let gameOver = false;
-    let geminiKey = "prompt("Gemini APIキーを入力してください（sk-...）:").trim();
+    let geminiKey = prompt("Gemini APIキーを入力してください:").trim();
     let choiceHistory = [];
 
     async function generatePage(choiceHistory = []) {
