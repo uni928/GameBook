@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>ゲームブック体験サイト</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #story {
+      white-space: pre-wrap;
+      border: 1px solid #ccc;
+      padding: 15px;
+      min-height: 200px;
+      margin-bottom: 20px;
+      background: #f9f9f9;
+    }
+    .choice {
+      margin: 10px 0;
+    }
+    button.choice-btn {
+      display: block;
+      margin-top: 5px;
+      padding: 10px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button.choice-btn:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <h2>ゲームブック体験サイト</h2>
+  <div id="story">ページを読み込み中...</div>
+  <div id="choices"></div>
+
+  <script>
+    let pageCount = 0;
+    const maxPages = 20;
+    let gameOver = false;
+    let geminiKey = "prompt("Gemini APIキーを入力してください（sk-...）:").trim();
+    let choiceHistory = [];
+
+    async function generatePage(choiceHistory = []) {
+      const isFinalPage = pageCount > maxPages;
+      const prompt = isFinalPage
+        ? `以下は日本語のゲームブックの最終ページです。読者は選択肢を選んで物語を進めてきました。これはゲームクリアのページです。
+
+これまでの選択肢: ${choiceHistory.join(" → ")}
+
+新しいページの本文（400字以内）を本文: から始めて出力してください。
+本文: ゲームクリア。これであなたの冒険は終わりです。おめでとうございます！` :
+        `以下は日本語のゲームブックのページです。読者は選択肢を選んで物語を進めていきます。現在は${pageCount + 1}ページ目です。ゲームオーバーになるまで続けて下さい。
+
+これまでの選択肢: ${choiceHistory.join(" → ")}
+
+新しいページの本文（400字以内）と3つの選択肢を以下の形式で出力してください：
+本文: ...
+選択肢:
+1. ○○○
+2. △△△
+3. □□□
+（ゲームオーバーになる場合は"ゲームオーバー"と明記）`;
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            contents: [{ role: "user", parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.8,
+              maxOutputTokens: 512
+            }
+          })
+        }
+      );
+
+      if (!response.ok) throw new Error("Gemini API エラー: " + response.status);
+      const data = await response.json();
+      return data.candidates?.[0]?.content?.parts?.[0]?.text || "物語を生成できませんでした。";
+    }
+
+    async function nextPage(choice = "") {
+      //if (gameOver || pageCount > maxPages + 1) return;
+      if (choice) choiceHistory.push(choice);
+
+      const storyEl = document.getElementById("story");
+      const choicesEl = document.getElementById("choices");
+
+      // disable all buttons temporarily
+      const buttons = choicesEl.querySelectorAll("button");
+      buttons.forEach(btn => btn.disabled = true);
+
+      const content = await generatePage(choiceHistory);
+
+      const parts = content.split("選択肢:");
+
+      if (content.includes("ゲームクリア")) {
+        storyEl.textContent = parts[0] + "\n\n🎉 ゲームクリア 🎉";
+        choicesEl.innerHTML = "";
+        gameCleared = true;
+        return;
+      }
+
+      if (content.includes("ゲームオーバー")) {
+        storyEl.textContent = parts[0] + "\n\n--- ゲームオーバー ---";
+        choicesEl.innerHTML = "";
+        gameOver = true;
+        return;
+      }
+
+      storyEl.textContent = parts[0].trim();
+      const options = parts[1].trim().split(/\n+/);
+      choicesEl.innerHTML = "";
+      options.forEach((opt, i) => {
+        const btn = document.createElement("button");
+        btn.textContent = `${opt}`;
+        btn.className = "choice-btn";
+        btn.disabled = false;
+        btn.onclick = () => {
+          pageCount++;
+          nextPage(opt);
+        };
+        choicesEl.appendChild(btn);
+      });
+
+      pageCount++;
+    }
+
+    nextPage();
+  </script>
+</body>
+</html>
